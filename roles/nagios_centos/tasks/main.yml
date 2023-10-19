@@ -1,0 +1,132 @@
+---
+    - name: Install EPEL Repository
+      yum:
+        name: epel-release
+        state: present
+
+    - name: Install Required Libraries for Nagios
+      package:
+        name:
+          - gcc
+          - glibc
+          - glibc-common
+          - perl
+          - httpd
+          - php
+          - wget
+          - gd
+          - gd-devel
+          - openssl-devel
+          - make
+          - gettext
+          - automake
+          - net-snmp
+          - net-snmp-utils
+          - python-pip
+      when: ansible_distribution_major_version == '7'
+
+    - name: Install Development Tools and Libraries
+      package:
+        name:
+          - automake
+          - autoconf
+          - gcc-c++
+          - openssl-devel
+          - libtool
+      when: ansible_distribution_major_version == '7'
+
+    - name: Add Nagios User
+      user:
+        name: nagios
+        state: present
+
+    - name: Add Nagcmd Group
+      group:
+        name: nagcmd
+        state: present
+
+    - name: Add Nagios to Nagcmd Group
+      user:
+        name: nagios
+        groups: nagcmd
+        append: yes
+
+    - name: Add Apache to Nagcmd Group
+      user:
+        name: apache
+        groups: nagcmd
+        append: yes
+
+    - name: Create Nagios Directory
+      file:
+        path: ~/nagios
+        state: directory
+
+    - name: Download Nagios Core
+      unarchive:
+        src: https://github.com/NagiosEnterprises/nagioscore/archive/nagios-4.4.6.tar.gz
+        dest: ~/nagios
+        remote_src: yes
+        mode: '0777'
+        owner: root
+        group: root
+
+    - name: Download Nagios Plugins
+      unarchive:
+        src: https://github.com/nagios-plugins/nagios-plugins/archive/release-2.3.3.tar.gz
+        dest: ~/nagios
+        remote_src: yes
+        mode: '0777'
+        owner: root
+        group: root
+
+    - name: Compile and Install Nagios Core and Web Configuration
+      shell: |
+        cd ~/nagios/nagioscore-**
+        ./configure
+        make all
+        make install
+        make install-init
+        make install-commandmode
+        make install-config
+        make install-webconf
+
+    - name: Compile and Install Nagios Plugins
+      shell: |
+        cd ~/nagios/nagios-plugins*
+        ./tools/setup
+        ./configure
+        make
+        make install
+
+    - name: Add Admin User to Nagios
+      community.general.htpasswd:
+        path: /usr/local/nagios/etc/htpasswd.users
+        name: admin
+        password: admin
+
+    - name: Start Apache
+      service:
+        name: httpd
+        state: started
+        enabled: yes
+
+    - name: Change Directory to Nagios Installation
+      command: cd ~/nagios
+
+    - name: Verify Nagios Configuration
+      command: >
+        /usr/local/nagios/bin/nagios -v /usr/local/nagios/etc/nagios.cfg
+      changed_when: false
+    - name: Start and Enable Nagios Service
+      service:
+        name: nagios
+        state: restarted
+        enabled: yes
+
+    - name: Start and Enable Apache
+      service:
+        name: httpd
+        state: restarted
+        enabled: yes
+

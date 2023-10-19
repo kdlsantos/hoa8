@@ -1,0 +1,32 @@
+---
+
+- hosts: all
+  become: true
+  pre_tasks:
+    - name: update repository index (CentOS)
+      tags: always
+      dnf:
+        update_cache: yes
+      changed_when: false
+      when: ansible_distribution == "Centos"
+
+    - name: install updates (Ubuntu)
+      tags: always
+      apt:
+        update_cache: yes
+      changed_when: false
+      when: ansible_distribution == "Ubuntu"
+
+- name: Install Nagios on Ubuntu
+  hosts: ubuntu_ser
+  become: true
+  roles:
+    - nagios_ubuntu
+
+- name: Install Nagios on CentOS
+  hosts: centos_ser
+  become: yes
+  roles:
+    - nagios_centos
+
+
